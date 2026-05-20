@@ -1,9 +1,10 @@
 import sqlite3
 
 def conectar():
-    conexao = sqlite3.connect("cratovia.db")
-    conexao.execute("PRAGMA foreign_keys = ON")
-    return conexao
+    conn = sqlite3.connect("cratovia.db")
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.row_factory = sqlite3.Row
+    return conn
 
 # - CRIAR TABELAS E POPULAR DADOS INICIAIS
 def iniciar_tabelas():
@@ -17,7 +18,9 @@ def iniciar_tabelas():
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             telefone TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL
+            senha TEXT NOT NULL,
+            tipo TEXT NOT NULL DEFAULT 'comum'
+            relevancia INTEGER DEFAULT 0
         );
     """)
 
@@ -65,7 +68,20 @@ def iniciar_tabelas():
             criado_em TEXT NOT NULL
         );
     """)
-
+    
+    # - TABELAS DE COMENTARIOS
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS comentarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        postagem_id INTEGER REFERENCES postagens(id),
+        usuario_id INTEGER REFERENCES usuarios(id),
+        resposta_para INTEGER REFERENCES comentarios(id),
+        conteudo TEXT NOT NULL,
+        oficial INTEGER DEFAULT 0,
+        criado_em TEXT NOT NULL
+    );
+""")
+    
     # - TABELA DE VOTOS ÚTEIS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votos_uteis (
