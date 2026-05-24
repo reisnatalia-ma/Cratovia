@@ -1,91 +1,81 @@
 import sqlite3
 import os
-from dados.database import conectar
 
-conn = conectar()
-cursor = conn.cursor()
+CAMINHO_BANCO = os.path.join(os.path.dirname(__file__), "cratovia.db")
 
-def cadastrar_usuario():
+
+def conectar():
+    conn = sqlite3.connect(CAMINHO_BANCO)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+
+def criar_tabelas():
     conn = conectar()
     cursor = conn.cursor()
 
-    os.system('clear')
-    nome = input('Nome: ')
-    email = input('Email: ')    
-    telefone = input('Telefone: ')
-    senha = input('Senha: ')
-    possui_tipo= input('É Moderador ou Servidor Público? (Se sim, digite "Sim" ou "S")')
-    tipo = ''
-    while possui_tipo.upper() in ['SIM', 'S']:
-        print('[1] - Moderador\n[2] Servidor Público')
-        cont = input('Entrada: ')
-        if cont == '1':
-            tipo = 'moderador'
-            possui_tipo = False
-        if cont == '2':
-            tipo = 'servidor'
-            possui_tipo = False
-        else:
-            possui_tipo = 'Sim'
-    try:
-        cursor.execute('''
-        INSERT INTO usuarios (nome, email, senha, telefone, tipo)
-        VALUES (?, ?, ?, ?, ?)
-        ''', (nome, email, senha, telefone, tipo))
-        conn.commit()
-        print('Usuário cadastrado!')
-    except sqlite3.IntegrityError:
-        print('Erro: email já cadastrado!')
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT NOT NULL,
+            email TEXT NOT NULL UNIQUE,
+            senha TEXT NOT NULL,
+            tipo TEXT NOT NULL DEFAULT 'comum'
+        )
+    """)
 
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS postagens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL,
+            descricao TEXT NOT NULL,
+            bairro TEXT NOT NULL,
+            data TEXT NOT NULL,
+            hora TEXT NOT NULL,
+            conteudo TEXT NOT NULL,
+            natureza TEXT,
+            tipo TEXT NOT NULL DEFAULT 'ocorrencia',
+            status TEXT NOT NULL DEFAULT 'ativa',
+            destaque INTEGER NOT NULL DEFAULT 0,
+            usuario_id INTEGER,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+    """)
 
-def login():
-    email = input('Email: ')
-    senha = input('Senha: ')
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS curtidas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            postagem_id INTEGER NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            FOREIGN KEY (postagem_id) REFERENCES postagens(id),
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+    """)
 
-    cursor.execute('''
-    SELECT * FROM usuarios WHERE email = ? AND senha = ?
-    ''', (email, senha))
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS comentarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            postagem_id INTEGER NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            texto TEXT NOT NULL,
+            data TEXT NOT NULL,
+            hora TEXT NOT NULL,
+            FOREIGN KEY (postagem_id) REFERENCES postagens(id),
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+    """)
 
-    usuario = cursor.fetchone()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS denuncias (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            postagem_id INTEGER NOT NULL,
+            usuario_id INTEGER NOT NULL,
+            motivo TEXT NOT NULL,
+            data TEXT NOT NULL,
+            FOREIGN KEY (postagem_id) REFERENCES postagens(id),
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        )
+    """)
 
-    if usuario:
-        print('Login feito!')
-        print('Bem-vindo', usuario[1])
-        return usuario
-    else:
-        print('Erro no login!')
-
-
-def listar():
-    cursor.execute('SELECT * FROM usuarios')
-    usuarios = cursor.fetchall()
-
-    if usuarios:
-        for u in usuarios:
-            print(f'ID: {u[0]} | Nome: {u[1]} | Email: {u[2]} | Tipo: {u[4]}')
-    else:
-        print('Nenhum usuário cadastrado.')
-
-executando = 0
-while executando != 4:
-    print('\n1 - Cadastrar')
-    print('2 - Login')
-    print('3 - Listar')
-    print('4 - Sair')
-
-    opcao = input('Escolha: ')
-
-    if opcao == '1':
-        cadastrar_usuario()
-    elif opcao == '2':
-        login()
-    elif opcao == '3':
-        listar()
-    elif opcao == '4':
-        print('Encerrando sistema...')
-        executando = 4
-    else:
-        print('Opção inválida')
-    
-
-conn.close()
+    conn.commit()
+    conn.close()

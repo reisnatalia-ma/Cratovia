@@ -1,18 +1,17 @@
-import os
-import sqlite3
+from datetime import datetime
 from dados.database import conectar
 
-# Listas
-naturezas_validas = [
-    "Acidente de trânsito",
-    "Incêndio",
+NATUREZAS = [
+    "Acidente",
+    "Problema urbano",
+    "Denúncia",
     "Alagamento",
-    "Desastre ambiental",
-    "Falta de infraestrutura",
-    "Violência/Segurança pública",
-    "Saúde pública",
-    "Outros",
+    "Falta de energia",
+    "Trânsito",
+    "Aviso importante",
+    "Outro"
 ]
+
 
 def criar_postagem(titulo, descricao, bairro, conteudo, natureza, usuario_id):
     agora = datetime.now()
@@ -30,11 +29,11 @@ def criar_postagem(titulo, descricao, bairro, conteudo, natureza, usuario_id):
     conn.close()
     return postagem_id
 
+
 def criar_evento(titulo, descricao, bairro, conteudo, usuario_id):
     agora = datetime.now()
     data = agora.strftime("%d/%m/%Y")
     hora = agora.strftime("%H:%M")
-
 
     conn = conectar()
     cursor = conn.cursor()
@@ -86,11 +85,11 @@ def remover_postagem(postagem_id, usuario_id):
     return alteradas > 0
 
 
-def nova_postagem(usuario):
+def formulario_nova_postagem(usuario):
     from utils.componentes import titulo, mensagem_erro, mensagem_sucesso
-    from utils.formatacao import linha_separadora
+    from utils.formatacao import limpar_tela, linha_separadora
 
-    os.system('clear')
+    limpar_tela()
     titulo("NOVA OCORRÊNCIA")
 
     postagem_titulo = input("Título: ").strip()
