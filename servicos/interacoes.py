@@ -1,65 +1,74 @@
-import csv
-import os 
-import posts.csv
+from Data.database import conectar
 
-'''caminho dos arquivos'''
+LIMITE_DENUNCIAS = 5
 
-caminho_comentarios = "dados/comentarios.csv"
-caminho_avaliações = "dados/avaliações"
+# ── Votar útil em uma postagem ────────────────────────────────────────────────
+def votar_util(postagem_id, usuario):
+    uid = usuario["id"]
 
-'''comentario'''
+    with conectar() as conn:
+        ja_votou = conn.execute(
+            "SELECT 1 FROM votos_uteis WHERE usuario_id=? AND postagem_id=?",
+            (uid, postagem_id)
+        ).fetchone()
 
-def adicionar_comentario(post_id, autor, comentario)
-  with open(caminho_comentarios, mode='r', encoding='utf-8') as f:
-    linhas = list(csv.reader(f))
-    novo_id = len(linhas)
+    if ja_votou:
+        print("  Você já marcou esta postagem como útil.")
+        return
 
-  with open(caminho_comentarios, mode='a', newline '', encoding='utf-8') as f:
-    writer = csv.writer(f)
-    writer.writerow([novo_id, post_id, autor, comentario])
+    resp = input("  Achou útil? (S/N): ").strip().upper()
+    if resp != "S":
+        return
 
-def listar_comentarios(post_id):
-  comentarios = []
+    with conectar() as conn:
+        conn.execute(
+            "INSERT INTO votos_uteis (usuario_id, postagem_id) VALUES (?,?)",
+            (uid, postagem_id)
+        )
+        conn.execute(
+            "UPDATE postagens SET votos_uteis = votos_uteis + 1 WHERE id=?",
+            (postagem_id,)
+        )
+        votos = conn.execute(
+            "SELECT votos_uteis FROM postagens WHERE id=?", (postagem_id,)
+        ).fetchone()[0]
 
-  with open(caminho_comentarios, mode='r', encoding='utf-8') as f:
-    reader = csv.DictReader(f)
-    for linha in reader:
-      if linha["post_id"] == str(post_id):
-        comentarios.append(linha)
-  
-  return comentarios
+    print(f"  {votos} {'pessoa achou' if votos == 1 else 'pessoas acharam'} isso útil.")
 
-'''avaliações'''
+# ── Denunciar postagem como fake news ─────────────────────────────────────────
+def denunciar(postagem_id, usuario):
+    uid = usuario["id"]
 
-def avaliar_post(post_id, usuario, veridico):
+    with conectar() as conn:
+        ja_denunciou = conn.execute(
+            "SELECT 1 FROM denuncias WHERE usuario_id=? AND postagem_id=?",
+            (uid, postagem_id)
+        ).fetchone()
 
-  '''impedir usuario de avaliar duas vezes'''
-  with open(caminho_comentarios, mode='a', newline '', encoding='utf-8') as f:
-    reader = csv.DictReader(f)
-    for linha in reader:
-    if linha["post_id"] == srt(post_id) and linha["usuario"] == usuario:
-      print("Usuário já avaliou este post.")
-      return
-   
-  with open(caminho_comentarios, mode='r', encoding='utf-8') as f:
-    linhas = list(csv.reader(f))
-    novo_id = len(linhas)
+    if ja_denunciou:
+        print("  Você já denunciou esta postagem.")
+        return
 
-  with open(caminho_comentarios, mode='r', encoding='utf-8') as f:
-    writer = csv.writer(f)
-    writer.writerow([novo_id, post_id, usuario, veridico])
+    resp = input("  Denunciar como fake news? (S/N): ").strip().upper()
+    if resp != "S":
+        return
 
+    with conectar() as conn:
+        conn.execute(
+            "INSERT INTO denuncias (usuario_id, postagem_id) VALUES (?,?)",
+            (uid, postagem_id)
+        )
+        conn.execute(
+            "UPDATE postagens SET denuncias = denuncias + 1 WHERE id=?",
+            (postagem_id,)
+        )
+        total = conn.execute(
+            "SELECT denuncias FROM postagens WHERE id=?", (postagem_id,)
+        ).fetchone()[0]
 
-def contar_avaliacoes(post_id):
-  positivos = 0
-  negativos = 0 
-
-  with open(caminho_comentarios, mode='r', encoding='utf-8') as f:
-    reader = csv.DictReader(f)
-    for linha in reader:
-      if linha["post_id"] == str(post_id):
-        positivo += 1
-      else:
-        negativos += 1
-        
-  return positivos, negativos
+        if total >= LIMITE_DENUNCIAS:
+            conn.execute(
+                "UPDATE postagens SET status='oculto' WHERE id=?", (postagem_id,)
+            )
+            print("  Esta postagem foi ocultada por excesso de denúncias e será revisada.")
+        else:
