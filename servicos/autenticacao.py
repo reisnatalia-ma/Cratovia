@@ -1,4 +1,3 @@
-
 import hashlib
 from dados.database import conectar
 
@@ -14,7 +13,7 @@ def hash_senha(senha):
 # CADASTRAR USUÁRIO
 # =========================
 
-def cadastrar_usuario(nome, email, senha):
+def cadastrar_usuario(nome, email, telefone, senha, tipo):
 
     conn = conectar()
     cursor = conn.cursor()
@@ -34,12 +33,11 @@ def cadastrar_usuario(nome, email, senha):
     # cadastra usuário
     cursor.execute(
         """
-        INSERT INTO usuarios (nome, email, senha, tipo)
-        VALUES (?, ?, ?, 'comum')
+        INSERT INTO usuarios (nome, email, telefone, senha, tipo)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        (nome, email, senha_hash)
+        (nome, email, telefone, senha_hash, tipo)
     )
-
     conn.commit()
 
     # pega id do usuário criado
@@ -114,6 +112,24 @@ def buscar_usuario_por_id(usuario_id):
 
     return None
 
+def validar_codigo_acesso(codigo):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM codigos_acesso WHERE codigo = ? AND usado = 0", (codigo,))
+    resultado = cursor.fetchone()
+    conn.close()
+    if resultado:
+        return dict(resultado)
+    return None
+
+def marcar_codigo_usado(codigo):
+    conn = conectar()
+    cursor = conn.cursor()
+    cursor.execute("UPDATE codigos_acesso SET usado = 1 WHERE codigo = ?", (codigo,))
+    conn.commit()
+    conn.close()
+
+
 
 # =========================
 # MENU
@@ -141,7 +157,7 @@ def menu_autenticacao():
     def limpar_tela():
 
         import os
-        os.system("cls")
+        os.system("clear")
 
 
     def linha_separadora():
@@ -210,12 +226,47 @@ def menu_autenticacao():
 
             nome = input("Nome: ").strip()
             email = input("E-mail: ").strip()
+            telefone = input("Telefone: ").strip()
             senha = input("Senha: ").strip()
+
+            linha_separadora()
+
+            print("Tipo de conta:")
+            print(" 1. Cidadão comum")
+            print(" 2. Moderador")
+            print(" 3. Servidor público")
+
+            linha_separadora()
+            escolha_tipo = input("Escolha: ").strip()
+            tipo = "comum"
+
+            if escolha_tipo == "2":
+                codigo = input("Insira o código de moderador: ").strip()
+                resultado = validar_codigo_acesso(codigo)
+                if not resultado or resultado["tipo"] != "moderador":
+                    mensagem_erro("Código inválido ou já utilizado.")
+                    input("Pressione Enter para tentar novamente...")
+                    continue
+                marcar_codigo_usado(codigo)
+                tipo = "moderador"
+
+            elif escolha_tipo == "3":
+                codigo = input("Insira código de servidor público: ").strip()
+                resultado = validar_codigo_acesso(codigo)
+                if not resultado or resultado["tipo"] != "servidor":
+                    mensagem_erro("Código inválido ou já utilizado.")
+                    input("Pressione Enter para tentar novamente...")
+                    continue
+                marcar_codigo_usado(codigo)
+                tipo = "servidor"
+
 
             usuario, mensagem = cadastrar_usuario(
                 nome,
                 email,
-                senha
+                telefone,
+                senha,
+                tipo
             )
 
             if usuario:
@@ -252,10 +303,3 @@ def menu_autenticacao():
 
             print("\nOpção inválida.")
             input("\nPressione Enter para continuar...")
-
-
-# =========================
-# INICIAR MENU
-# =========================
-
-menu_autenticacao()

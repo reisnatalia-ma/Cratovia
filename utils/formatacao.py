@@ -11,3 +11,6 @@ def centralizar(texto):
 
 def formatar_data_hora(data, hora):
     return f"{data} às {hora}"
+
+def limpar_tela():
+    os.system("clear")

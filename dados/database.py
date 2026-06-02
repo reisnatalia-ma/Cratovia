@@ -21,7 +21,7 @@ def iniciar_tabelas():
             email TEXT UNIQUE NOT NULL,
             telefone TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL,
-            tipo TEXT NOT NULL DEFAULT 'comum'
+            tipo TEXT NOT NULL DEFAULT 'comum',
             relevancia INTEGER DEFAULT 0
         );
     """)
