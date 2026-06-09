@@ -1,4 +1,12 @@
 import sqlite3
+import os
+
+caminho_banco = os.path.join(os.path.dirname(__file__), "cratovia.db")
+def conectar():
+    conn = sqlite3.connect(caminho_banco)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def conectar():
     conexao = sqlite3.connect("cratovia.db")
@@ -17,6 +25,9 @@ def iniciar_tabelas():
             nome TEXT NOT NULL,
             email TEXT UNIQUE NOT NULL,
             telefone TEXT UNIQUE NOT NULL,
+            senha TEXT NOT NULL,
+            tipo TEXT NOT NULL DEFAULT 'comum',
+            relevancia INTEGER DEFAULT 0,
             senha TEXT NOT NULL
         );
     """)
@@ -65,6 +76,20 @@ def iniciar_tabelas():
             criado_em TEXT NOT NULL
         );
     """)
+    
+    # - TABELAS DE COMENTARIOS
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS comentarios (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        postagem_id INTEGER REFERENCES postagens(id),
+        usuario_id INTEGER REFERENCES usuarios(id),
+        resposta_para INTEGER REFERENCES comentarios(id),
+        conteudo TEXT NOT NULL,
+        oficial INTEGER DEFAULT 0,
+        criado_em TEXT NOT NULL
+    );
+""")
+    
 
     # - TABELA DE VOTOS ÚTEIS
     cursor.execute("""
