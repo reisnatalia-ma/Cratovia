@@ -1,11 +1,6 @@
 from datetime import datetime
 from dados.database import conectar
 
-
-# ──────────────────────────────────────────
-#  CURTIDAS
-# ──────────────────────────────────────────
-
 def curtir_postagem(postagem_id, usuario_id):
     conn = conectar()
     cursor = conn.cursor()
@@ -40,12 +35,7 @@ def contar_curtidas(postagem_id):
         return cursor.fetchone()[0]
     finally:
         conn.close()
-
-
-# ──────────────────────────────────────────
-#  COMENTÁRIOS (com suporte a respostas)
-# ──────────────────────────────────────────
-
+        
 def adicionar_comentario(postagem_id, usuario_id, texto, resposta_para_id=None):
     """Insere um comentário. Se resposta_para_id for informado, é uma resposta."""
     if not texto or not texto.strip():
@@ -87,7 +77,6 @@ def buscar_comentarios(postagem_id):
     finally:
         conn.close()
 
-    # Organiza: raiz + respostas aninhadas
     raiz = []
     por_id = {}
 
@@ -103,11 +92,6 @@ def buscar_comentarios(postagem_id):
             raiz.append(com)
 
     return raiz
-
-
-# ──────────────────────────────────────────
-#  DENÚNCIAS
-# ──────────────────────────────────────────
 
 def denunciar_postagem(postagem_id, usuario_id, motivo):
     agora = datetime.now()
@@ -131,12 +115,7 @@ def denunciar_postagem(postagem_id, usuario_id, motivo):
         return True, "Denúncia registrada."
     finally:
         conn.close()
-
-
-# ──────────────────────────────────────────
-#  EXIBIÇÃO
-# ──────────────────────────────────────────
-
+        
 def _exibir_comentario(com, indice, prefixo=""):
     """Exibe um comentário com número de referência e suas respostas."""
     from utils.formatacao import LARGURA
@@ -146,12 +125,7 @@ def _exibir_comentario(com, indice, prefixo=""):
         for sub in com["respostas"]:
             print(f"  {prefixo}    ↳ {sub['nome']}  {sub['data']} {sub['hora']}")
             print(f"  {prefixo}       {sub['texto']}")
-
-
-# ──────────────────────────────────────────
-#  MENU PRINCIPAL DE INTERAÇÕES
-# ──────────────────────────────────────────
-
+            
 def menu_interacoes(postagem, usuario):
     from utils.formatacao import limpar_tela, linha_separadora
     from utils.componentes import titulo, mensagem_sucesso, mensagem_erro, mensagem_info
@@ -195,13 +169,11 @@ def menu_interacoes(postagem, usuario):
         linha_separadora()
         opcao = input("Escolha: ").strip().upper()
 
-        # ── Curtir ──────────────────────────────
         if opcao == "C" and usuario:
             resultado = curtir_postagem(postagem["id"], usuario["id"])
             mensagem_sucesso(f"Postagem {resultado}!")
             input("Pressione Enter para continuar...")
 
-        # ── Comentar ────────────────────────────
         elif opcao == "M" and usuario:
             texto = input("Seu comentário: ").strip()
             if texto:
@@ -211,7 +183,6 @@ def menu_interacoes(postagem, usuario):
                 mensagem_erro("Comentário não pode estar vazio.")
             input("Pressione Enter para continuar...")
 
-        # ── Responder comentário ─────────────────
         elif opcao == "R" and usuario:
             if not comentarios:
                 mensagem_erro("Não há comentários para responder.")
@@ -241,7 +212,6 @@ def menu_interacoes(postagem, usuario):
                 mensagem_erro("Resposta não pode estar vazia.")
             input("Pressione Enter para continuar...")
 
-        # ── Denunciar ────────────────────────────
         elif opcao == "D" and usuario:
             motivo = input("Motivo da denúncia: ").strip()
             if motivo:
