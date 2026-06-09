@@ -8,6 +8,11 @@ def conectar():
     conn.row_factory = sqlite3.Row
     return conn
 
+def conectar():
+    conexao = sqlite3.connect("cratovia.db")
+    conexao.execute("PRAGMA foreign_keys = ON")
+    return conexao
+
 # - CRIAR TABELAS E POPULAR DADOS INICIAIS
 def iniciar_tabelas():
     conexao = conectar()
@@ -22,7 +27,8 @@ def iniciar_tabelas():
             telefone TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL,
             tipo TEXT NOT NULL DEFAULT 'comum',
-            relevancia INTEGER DEFAULT 0
+            relevancia INTEGER DEFAULT 0,
+            senha TEXT NOT NULL
         );
     """)
 
@@ -84,6 +90,7 @@ def iniciar_tabelas():
     );
 """)
     
+
     # - TABELA DE VOTOS ÚTEIS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votos_uteis (
