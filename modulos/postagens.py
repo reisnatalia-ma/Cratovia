@@ -1,4 +1,4 @@
-from Data.database import conectar
+from dados.database import conectar
 from modulos.utils import cabecalho, pausar, agora, so_hora, formatar_data, paginar
 
 # ── Buscar listas auxiliares ──────────────────────────────────────────────────
@@ -141,13 +141,14 @@ def criar_postagem(usuario):
             return
 
 # ── Exibir postagem completa ──────────────────────────────────────────────────
+# ── Exibir postagem completa ──────────────────────────────────────────────────
 def ler_postagem(postagem_id, usuario):
     from modulos.interacoes import votar_util, denunciar
 
     with conectar() as conn:
         post = conn.execute("""
             SELECT p.*, b.nome AS bairro_nome, n.nome AS natureza_nome,
-                   u.tipo AS autor_tipo, u.orgao AS autor_orgao
+                   u.tipo AS autor_tipo
             FROM postagens p
             LEFT JOIN bairros b   ON b.id = p.bairro_id
             LEFT JOIN naturezas n ON n.id = p.natureza_id
@@ -174,14 +175,12 @@ def ler_postagem(postagem_id, usuario):
     print()
     print("-" * 50)
 
-    # Autor
     autor = post["autor_nome"] or "Anônimo"
     tipo  = post.get("autor_tipo", "comum")
     if tipo == "moderador":
         autor += " [MOD]"
     elif tipo == "servidor":
-        orgao = post.get("autor_orgao") or ""
-        autor += f" [SERVIDOR — {orgao}]"
+        autor += " [SERVIDOR]"
     print(f"  Publicado por: {autor}")
     print(f"  Data: {formatar_data(post['criado_em'])}")
 
@@ -189,10 +188,13 @@ def ler_postagem(postagem_id, usuario):
     print(f"\n  {votos} {'pessoa achou' if votos == 1 else 'pessoas acharam'} isso útil.")
     print("-" * 50)
 
-    # Interações do usuário com a postagem
     if usuario:
-        votar_util(postagem_id, usuario)
-        denunciar(postagem_id, usuario)
+        print("\n  [U] Útil   [D] Denunciar   [ENTER] Voltar")
+        op = input("\n  Ação: ").strip().upper()
+        if op == "U":
+            votar_util(postagem_id, usuario)
+        elif op == "D":
+            denunciar(postagem_id, usuario)
     else:
         print("  Faça login para votar ou denunciar.")
 

@@ -59,28 +59,7 @@ def cadastrar_usuario(nome, email, telefone, senha, tipo):
 
     # retorna usuário completo
     return dict(usuario), "Cadastro realizado com sucesso!"
-
-# =========================
-# CRIAR TABELA USUÁRIOS
-# =========================
-
-def criar_tabela_usuarios():
-
-    conn = conectar()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            tipo TEXT DEFAULT 'comum'
-        )
-    """)
-
-    conn.commit()
-    conn.close()
+    
 # =========================
 # LOGIN
 # =========================
@@ -227,7 +206,7 @@ def menu_autenticacao():
 
                 input("\nPressione Enter para continuar...")
 
-                continue
+                return usuario
 
             else:
 
@@ -248,9 +227,28 @@ def menu_autenticacao():
             titulo("CRIAR CONTA")
 
             nome = input("Nome: ").strip()
+            if not nome:
+                mensagem_erro("Nome obrigatório.")
+                input("Pressione Enter para tentar novamente...")
+                continue
+
             email = input("E-mail: ").strip()
+            if not email:
+                mensagem_erro("E-mail obrigatório.")
+                input("Pressione Enter para tentar novamente...")
+                continue
+
             telefone = input("Telefone: ").strip()
+            if not telefone:
+                mensagem_erro("Telefone obrigatório.")
+                input("Pressione Enter para tentar novamente...")
+                continue
+
             senha = input("Senha: ").strip()
+            if not senha:
+                mensagem_erro("Senha obrigatória.")
+                input("Pressione Enter para tentar novamente...")
+                continue
 
             linha_separadora()
 
@@ -300,7 +298,7 @@ def menu_autenticacao():
 
                 input("\nPressione Enter para continuar...")
 
-                continue
+                return usuario
 
             else:
 
@@ -320,7 +318,7 @@ def menu_autenticacao():
 
             input("\nPressione Enter para continuar...")
 
-            continue
+            return None
 
         # =========================
         # SAIR

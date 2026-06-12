@@ -66,6 +66,7 @@ def iniciar_tabelas():
             status TEXT NOT NULL DEFAULT 'aguardando',
             votos_uteis INTEGER DEFAULT 0,
             denuncias INTEGER DEFAULT 0,
+            autor_nome TEXT,
             aprovador_por INTEGER REFERENCES usuarios(id),
             criado_em TEXT NOT NULL
         );

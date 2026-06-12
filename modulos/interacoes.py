@@ -1,4 +1,4 @@
-from Data.database import conectar
+from dados.database import conectar
 
 LIMITE_DENUNCIAS = 5
 
@@ -72,3 +72,4 @@ def denunciar(postagem_id, usuario):
             )
             print("  Esta postagem foi ocultada por excesso de denúncias e será revisada.")
         else:
+            print("  Denúncia registrada.")

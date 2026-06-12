@@ -1,15 +1,6 @@
-from Data.database import conectar
+from dados.database import conectar
 from modulos.utils import cabecalho, pausar, so_hora, paginar
 from modulos.postagens import ler_postagem, buscar_bairros, buscar_naturezas
-
-POR_PAGINA = 5
-
-# ── Linha resumida de postagem ────────────────────────────────────────────────
-def linha_post(numero, post):
-    bairro = (post.get("bairro_nome") or "?").upper()
-    hora   = so_hora(post["criado_em"])
-    titulo = post["titulo"][:45]
-    return f"  {numero} - {bairro} [{hora}] : {titulo}"
 
 # ── Buscar postagens aprovadas com filtros opcionais ─────────────────────────
 def buscar_posts(bairro_id=None, natureza_id=None):
@@ -33,49 +24,44 @@ def buscar_posts(bairro_id=None, natureza_id=None):
             ORDER BY p.criado_em DESC
         """, params).fetchall()]
 
-# ── Exibir lista com paginação ────────────────────────────────────────────────
+# ── Exibir postagens completas ────────────────────────────────────────────────
 def exibir_lista(posts, titulo, usuario):
-    pagina = 1
-    while True:
-        itens, pagina, total = paginar(posts, POR_PAGINA, pagina)
+    cabecalho(titulo)
 
-        cabecalho(titulo)
-        print(f"  Página {pagina}/{total}\n")
+    if not posts:
+        print("  Nenhuma ocorrência encontrada.")
+        pausar()
+        return
 
-        if not posts:
-            print("  Nenhuma ocorrência encontrada.")
-            pausar()
-            return
+    for post in posts:
+        bairro = (post.get("bairro_nome") or "?").upper()
+        hora   = so_hora(post["criado_em"])
+        print(f"\n  {bairro} [{hora}] — {post['titulo']}")
+        if post.get("natureza_nome"):
+            print(f"  [{post['natureza_nome']}]")
+        print(f"  Local: {post['local_bairro'] or 'Não informado'}")
+        print()
+        for linha in post["conteudo"].split("\n"):
+            print(f"  {linha}")
+        votos = post["votos_uteis"]
+        print(f"\n  {votos} {'pessoa achou' if votos == 1 else 'pessoas acharam'} isso útil.")
+        print("  " + "-" * 46)
 
-        for i, post in enumerate(itens, start=(pagina-1)*POR_PAGINA+1):
-            print(linha_post(i, post))
-
-        print("\n  Número = Ler   [R] Recarregar   [>] Próxima   [<] Anterior   [X] Voltar")
-        op = input("\n  Comando: ").strip().upper()
-
-        if op == "X":
-            return
-        if op == "R":
-            pagina = 1
-            continue
-        if op == ">" and pagina < total:
-            pagina += 1
-            continue
-        if op == "<" and pagina > 1:
-            pagina -= 1
-            continue
-        try:
-            num = int(op)
-            if 1 <= num <= len(posts):
-                ler_postagem(posts[num - 1]["id"], usuario)
-                posts = buscar_posts()  # recarrega após leitura
-                continue
-            if 1 <= num <= total:
-                pagina = num
-                continue
-        except ValueError:
-            pass
-        print("  Opção inválida.")
+    if usuario:
+        print("\n  Digite o número da postagem para interagir, ou [X] para voltar.")
+        for i, post in enumerate(posts, 1):
+            print(f"  [{i}] {post['titulo'][:45]}")
+        op = input("\n  Escolha: ").strip().upper()
+        if op != "X":
+            try:
+                num = int(op)
+                if 1 <= num <= len(posts):
+                    ler_postagem(posts[num - 1]["id"], usuario)
+            except ValueError:
+                pass
+    else:
+        print("\n  Faça login para interagir.")
+        pausar()
 
 # ── 1. Feed geral ─────────────────────────────────────────────────────────────
 def feed_geral(usuario):
@@ -156,29 +142,3 @@ def feed_por_natureza(usuario):
         except ValueError:
             pass
         print("  Opção inválida.")
-
-# ── 5. Anúncios e eventos ─────────────────────────────────────────────────────
-def ver_anuncios(usuario):
-    cabecalho("ANÚNCIOS E EVENTOS EM CRATO")
-
-    with conectar() as conn:
-        anuncios = [dict(r) for r in conn.execute(
-            "SELECT * FROM anuncios ORDER BY criado_em DESC"
-        ).fetchall()]
-
-    if not anuncios:
-        print("  Nenhum anúncio cadastrado.")
-        pausar()
-        return
-
-    for a in anuncios:
-        tipo = "EVENTO" if a["tipo"] == "evento" else "AVISO"
-        print(f"\n  [{tipo}] {a['titulo']}")
-        if a.get("data"):
-            print(f"  Data:  {a['data']}")
-        if a.get("local"):
-            print(f"  Local: {a['local']}")
-        print(f"  {a['descricao']}")
-        print("  " + "·" * 46)
-
-    pausar()
