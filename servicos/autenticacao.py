@@ -1,6 +1,6 @@
 import hashlib
+import getpass
 from dados.database import conectar
-
 
 # =========================
 # CRIPTOGRAFAR SENHA
@@ -14,7 +14,7 @@ def hash_senha(senha):
 # CADASTRAR USUÁRIO
 # =========================
 
-def cadastrar_usuario(nome, email, telefone, senha, tipo):
+def cadastrar_usuario(nome, email, telefone, senha, tipo, orgao=None):
 
     conn = conectar()
     cursor = conn.cursor()
@@ -34,10 +34,10 @@ def cadastrar_usuario(nome, email, telefone, senha, tipo):
     # cadastra usuário
     cursor.execute(
         """
-        INSERT INTO usuarios (nome, email, telefone, senha, tipo)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO usuarios (nome, email, telefone, senha, tipo, orgao)
+        VALUES (?, ?, ?, ?, ?, ?)
         """,
-        (nome, email, telefone, senha_hash, tipo)
+        (nome, email, telefone, senha_hash, tipo, orgao)
     )
     conn.commit()
 
@@ -60,27 +60,7 @@ def cadastrar_usuario(nome, email, telefone, senha, tipo):
     # retorna usuário completo
     return dict(usuario), "Cadastro realizado com sucesso!"
 
-# =========================
-# CRIAR TABELA USUÁRIOS
-# =========================
 
-def criar_tabela_usuarios():
-
-    conn = conectar()
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS usuarios (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            nome TEXT NOT NULL,
-            email TEXT UNIQUE NOT NULL,
-            senha TEXT NOT NULL,
-            tipo TEXT DEFAULT 'comum'
-        )
-    """)
-
-    conn.commit()
-    conn.close()
 # =========================
 # LOGIN
 # =========================
@@ -184,7 +164,7 @@ def menu_autenticacao():
     def linha_separadora():
 
         print("=" * 40)
-
+        
 
     while True:
 
@@ -212,8 +192,7 @@ def menu_autenticacao():
             titulo("LOGIN")
 
             email = input("E-mail: ").strip()
-            senha = input("Senha: ").strip()
-
+            senha = getpass.getpass("Senha: ").strip()
             usuario, mensagem = fazer_login(
                 email,
                 senha
@@ -227,15 +206,13 @@ def menu_autenticacao():
 
                 input("\nPressione Enter para continuar...")
 
-                continue
+                return usuario
 
             else:
 
                 mensagem_erro(mensagem)
 
                 input("\nPressione Enter para tentar novamente...")
-
-                continue
 
         # =========================
         # CADASTRO
@@ -250,8 +227,7 @@ def menu_autenticacao():
             nome = input("Nome: ").strip()
             email = input("E-mail: ").strip()
             telefone = input("Telefone: ").strip()
-            senha = input("Senha: ").strip()
-
+            senha = getpass.getpass("Senha: ").strip()
             linha_separadora()
 
             print("Tipo de conta:")
@@ -262,6 +238,8 @@ def menu_autenticacao():
             linha_separadora()
             escolha_tipo = input("Escolha: ").strip()
             tipo = "comum"
+
+            orgao = None
 
             if escolha_tipo == "2":
                 codigo = input("Insira o código de moderador: ").strip()
@@ -282,14 +260,15 @@ def menu_autenticacao():
                     continue
                 marcar_codigo_usado(codigo)
                 tipo = "servidor"
-
+                orgao = resultado.get("orgao")
 
             usuario, mensagem = cadastrar_usuario(
                 nome,
                 email,
                 telefone,
                 senha,
-                tipo
+                tipo,
+                orgao
             )
 
             if usuario:
@@ -300,7 +279,7 @@ def menu_autenticacao():
 
                 input("\nPressione Enter para continuar...")
 
-                continue
+                return usuario
 
             else:
 
@@ -308,31 +287,24 @@ def menu_autenticacao():
 
                 input("\nPressione Enter para tentar novamente...")
 
-                continue
-
         # =========================
         # CONTINUAR SEM LOGIN
         # =========================
 
         elif opcao == "3":
-
-            print("\nContinuando sem login...")
-
-            input("\nPressione Enter para continuar...")
-
-            continue
+            return None
 
         # =========================
         # SAIR
         # =========================
 
         elif opcao == "0":
-
-            print("\nPrograma encerrado.")
-
-            break
+            exit()
 
         else:
+
+            print("\nOpção inválida.")
+            input("\nPressione Enter para continuar...")
 
             print("\nOpção inválida.")
             input("\nPressione Enter para continuar...")
