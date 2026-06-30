@@ -1,149 +1,200 @@
 from datetime import datetime
 from dados.database import conectar
+from utils.formatacao import linha_separadora, limpar_tela
+from utils.componentes import titulo, mensagem_sucesso, mensagem_erro
 
 
-def buscar_bairros():
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, nome FROM bairros ORDER BY nome")
-    bairros = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return bairros
+def _agora():
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-def buscar_naturezas():
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, nome FROM naturezas ORDER BY nome")
-    naturezas = [dict(row) for row in cursor.fetchall()]
-    conn.close()
-    return naturezas
+def _listar_bairros():
+    with conectar() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, nome FROM bairros ORDER BY nome"
+        ).fetchall()]
 
 
-def criar_postagem(titulo, conteudo, bairro_id, local_bairro, natureza_id, usuario_id):
-    agora = datetime.now()
-    criado_em = agora.strftime("%d/%m/%Y %H:%M")
-
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO postagens (usuario_id, bairro_id, local_bairro, titulo, conteudo, natureza_id, status, criado_em)
-        VALUES (?, ?, ?, ?, ?, ?, 'aguardando', ?)
-    """, (usuario_id, bairro_id, local_bairro, titulo, conteudo, natureza_id, criado_em))
-    conn.commit()
-    postagem_id = cursor.lastrowid
-    conn.close()
-    return postagem_id
+def _listar_naturezas():
+    with conectar() as conn:
+        return [dict(r) for r in conn.execute(
+            "SELECT id, nome FROM naturezas ORDER BY nome"
+        ).fetchall()]
 
 
-def buscar_postagem_por_id(postagem_id):
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT p.*, b.nome as bairro_nome, n.nome as natureza_nome, u.nome as autor_nome
-        FROM postagens p
-        LEFT JOIN bairros b ON p.bairro_id = b.id
-        LEFT JOIN naturezas n ON p.natureza_id = n.id
-        LEFT JOIN usuarios u ON p.usuario_id = u.id
-        WHERE p.id = ?
-    """, (postagem_id,))
-    postagem = cursor.fetchone()
-    conn.close()
-    if postagem:
-        return dict(postagem)
-    return None
+def _selecionar_bairro():
+    bairros = _listar_bairros()
 
-
-def remover_postagem(postagem_id, usuario_id):
-    conn = conectar()
-    cursor = conn.cursor()
-    cursor.execute(
-        "DELETE FROM postagens WHERE id = ? AND usuario_id = ?",
-        (postagem_id, usuario_id)
-    )
-    conn.commit()
-    alteradas = cursor.rowcount
-    conn.close()
-    return alteradas > 0
-
-
-def selecionar_bairro():
-    from utils.formatacao import limpar_tela, linha_separadora
-    from utils.componentes import titulo
-
-    bairros = buscar_bairros()
-
-    limpar_tela()
-    titulo("SELECIONAR BAIRRO")
-
+    print("\n  Bairros disponíveis:\n")
     for i, b in enumerate(bairros, 1):
         print(f"  {i:2}. {b['nome']}")
 
     linha_separadora()
-    escolha = input("Número do bairro: ").strip()
 
-    if escolha.isdigit() and 1 <= int(escolha) <= len(bairros):
-        return bairros[int(escolha) - 1]
-    return None
+    while True:
+        try:
+            escolha = int(input("\n  Número do bairro: ").strip())
+            if 1 <= escolha <= len(bairros):
+                return bairros[escolha - 1]
+            print("  Número fora do intervalo.")
+        except ValueError:
+            print("  Digite um número válido.")
 
 
-def selecionar_natureza():
-    from utils.formatacao import linha_separadora
+def _selecionar_natureza():
+    naturezas = _listar_naturezas()
 
-    naturezas = buscar_naturezas()
-
-    print("\nNatureza da ocorrência:")
+    print("\n  Categorias disponíveis:\n")
     for i, n in enumerate(naturezas, 1):
         print(f"  {i}. {n['nome']}")
-    print(f"  {len(naturezas) + 1}. Não informar")
+
     linha_separadora()
 
-    escolha = input("Escolha: ").strip()
-    if escolha.isdigit() and 1 <= int(escolha) <= len(naturezas):
-        return naturezas[int(escolha) - 1]
-    return None
+    while True:
+        try:
+            escolha = int(input("\n  Número da categoria: ").strip())
+            if 1 <= escolha <= len(naturezas):
+                return naturezas[escolha - 1]
+            print("  Número fora do intervalo.")
+        except ValueError:
+            print("  Digite um número válido.")
 
 
-def nova_postagem(usuario):
-    from utils.componentes import titulo, mensagem_erro, mensagem_sucesso
-    from utils.formatacao import limpar_tela, linha_separadora
-
-    bairro = selecionar_bairro()
-    if not bairro:
-        mensagem_erro("Bairro inválido.")
-        input("Pressione Enter para voltar...")
-        return
-
-    limpar_tela()
-    titulo("NOVA OCORRÊNCIA")
-    print(f"Bairro: {bairro['nome']}")
-    linha_separadora()
-
-    postagem_titulo = input("Título: ").strip()
-    if not postagem_titulo:
-        mensagem_erro("Título não pode estar vazio.")
-        input("Pressione Enter para voltar...")
-        return
-
-    local_bairro = input("Local no bairro (rua, referência): ").strip()
-
-    natureza = selecionar_natureza()
-    natureza_id = natureza["id"] if natureza else None
-
-    print("\nDescrição completa (pressione Enter duas vezes para finalizar):")
+def _coletar_conteudo():
+    print("\n  Texto completo (linha em branco para encerrar):\n")
     linhas = []
     while True:
-        linha = input()
-        if linha == "" and linhas and linhas[-1] == "":
+        linha = input("  ")
+        if linha == "":
             break
         linhas.append(linha)
-    conteudo = "\n".join(linhas).strip()
+    return "\n".join(linhas)
 
-    if not conteudo:
-        mensagem_erro("Conteúdo não pode estar vazio.")
-        input("Pressione Enter para voltar...")
+
+def _status_inicial(usuario):
+    # - As postagens de servidor público são publicadas imediatamente já as demais aguarda moderação
+    if usuario.get("tipo") == "servidor":
+        return "aprovado"
+    return "aguardando"
+
+
+def criar_ocorrencia(usuario):
+    limpar_tela()
+    titulo("NOVA OCORRÊNCIA")
+
+    titulo_post = input("  Título: ").strip()
+    if not titulo_post:
+        mensagem_erro("Título não pode estar vazio.")
         return
 
-    postagem_id = criar_postagem(postagem_titulo, conteudo, bairro["id"], local_bairro, natureza_id, usuario["id"])
-    mensagem_sucesso(f"Ocorrência enviada para aprovação! ID: {postagem_id}")
-    input("Pressione Enter para continuar...")
+    descricao = input("  Descrição breve: ").strip()
+    if not descricao:
+        mensagem_erro("Descrição não pode estar vazia.")
+        return
+
+    print()
+    bairro = _selecionar_bairro()
+    local_bairro = input("\n  Endereço / ponto de referência (opcional): ").strip()
+
+    print()
+    natureza = _selecionar_natureza()
+
+    conteudo = _coletar_conteudo()
+    if not conteudo:
+        mensagem_erro("Conteúdo não pode estar vazio.")
+        return
+
+    status = _status_inicial(usuario)
+
+    with conectar() as conn:
+        conn.execute("""
+            INSERT INTO postagens
+                (usuario_id, bairro_id, local_bairro, titulo, descricao,
+                conteudo, natureza_id, status, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+            usuario["id"],
+            bairro["id"],
+            local_bairro or None,
+            titulo_post,
+            descricao,
+            conteudo,
+            natureza["id"],
+            status,
+            _agora()
+        ))
+
+    if status == "aprovado":
+        mensagem_sucesso("Ocorrência publicada com sucesso!")
+    else:
+        mensagem_sucesso("Ocorrência enviada! Aguarda aprovação de um moderador.")
+
+    input("  ENTER para continuar...")
+
+
+def criar_evento(usuario):
+    limpar_tela()
+    titulo("NOVO EVENTO")
+
+    titulo_post = input("  Título do evento: ").strip()
+    if not titulo_post:
+        mensagem_erro("Título não pode estar vazio.")
+        return
+
+    descricao = input("  Descrição breve: ").strip()
+    if not descricao:
+        mensagem_erro("Descrição não pode estar vazia.")
+        return
+
+    print()
+    bairro = _selecionar_bairro()
+    local_bairro = input("\n  Endereço / local do evento (opcional): ").strip()
+
+    conteudo = _coletar_conteudo()
+    if not conteudo:
+        mensagem_erro("Conteúdo não pode estar vazio.")
+        return
+
+    status = _status_inicial(usuario)
+
+    with conectar() as conn:
+        conn.execute("""
+            INSERT INTO anuncios_eventos
+                (usuario_id, bairro_id, local_bairro, titulo, descricao,
+                conteudo, status, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (
+            usuario["id"],
+            bairro["id"],
+            local_bairro or None,
+            titulo_post,
+            descricao,
+            conteudo,
+            status,
+            _agora()
+        ))
+
+    if status == "aprovado":
+        mensagem_sucesso("Evento publicado com sucesso!")
+    else:
+        mensagem_sucesso("Evento enviado! Aguarda aprovação de um moderador.")
+
+    input("  ENTER para continuar...")
+
+
+def menu_nova_postagem(usuario):
+    limpar_tela()
+    titulo("PUBLICAR")
+
+    print("  O que deseja publicar?\n")
+    print("  [1] Ocorrência")
+    print("  [2] Evento")
+    print("  [X] Voltar")
+
+    linha_separadora()
+    op = input("\n  Escolha: ").strip().upper()
+
+    if op == "1":
+        criar_ocorrencia(usuario)
+    elif op == "2":
+        criar_evento(usuario)
