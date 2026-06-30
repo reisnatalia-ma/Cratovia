@@ -8,11 +8,6 @@ def conectar():
     conn.row_factory = sqlite3.Row
     return conn
 
-def conectar():
-    conexao = sqlite3.connect("cratovia.db")
-    conexao.execute("PRAGMA foreign_keys = ON")
-    return conexao
-
 # - CRIAR TABELAS E POPULAR DADOS INICIAIS
 def iniciar_tabelas():
     conexao = conectar()
@@ -27,8 +22,8 @@ def iniciar_tabelas():
             telefone TEXT UNIQUE NOT NULL,
             senha TEXT NOT NULL,
             tipo TEXT NOT NULL DEFAULT 'comum',
-            relevancia INTEGER DEFAULT 0,
-            senha TEXT NOT NULL
+            orgao TEXT,
+            relevancia INTEGER DEFAULT 0
         );
     """)
 
@@ -62,21 +57,22 @@ def iniciar_tabelas():
     # - TABELA DE POSTAGENS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS postagens (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            usuario_id INTEGER REFERENCES usuarios(id),
-            bairro_id INTEGER REFERENCES bairros(id),
+            id           INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id   INTEGER REFERENCES usuarios(id),
+            bairro_id    INTEGER REFERENCES bairros(id),
             local_bairro TEXT,
-            titulo TEXT NOT NULL,
-            conteudo TEXT NOT NULL,
-            natureza_id INTEGER REFERENCES naturezas(id),
-            status TEXT NOT NULL DEFAULT 'aguardando',
-            votos_uteis INTEGER DEFAULT 0,
-            denuncias INTEGER DEFAULT 0,
-            aprovador_por INTEGER REFERENCES usuarios(id),
-            criado_em TEXT NOT NULL
+            titulo       TEXT    NOT NULL,
+            descricao    TEXT    NOT NULL,
+            conteudo     TEXT    NOT NULL,
+            natureza_id  INTEGER REFERENCES naturezas(id),
+            status       TEXT    NOT NULL DEFAULT 'aguardando',
+            votos_uteis  INTEGER DEFAULT 0,
+            denuncias    INTEGER DEFAULT 0,
+            aprovado_por INTEGER REFERENCES usuarios(id),
+            criado_em    TEXT    NOT NULL
         );
     """)
-    
+
     # - TABELAS DE COMENTARIOS
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS comentarios (
@@ -90,7 +86,6 @@ def iniciar_tabelas():
     );
 """)
     
-
     # - TABELA DE VOTOS ÚTEIS
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS votos_uteis (
@@ -118,8 +113,9 @@ def iniciar_tabelas():
             local_bairro TEXT,
             titulo TEXT NOT NULL,
             descricao TEXT NOT NULL,
+            conteudo TEXT NOT NULL,
             status TEXT NOT NULL DEFAULT 'aguardando',
-            aprovador_por INTEGER REFERENCES usuarios(id),
+            aprovado_por INTEGER REFERENCES usuarios(id),
             criado_em TEXT NOT NULL
         );
     """)
@@ -155,6 +151,7 @@ def iniciar_tabelas():
     codigos_acesso = [
         ("MOD-CRATO-2024",   "moderador", None),
         ("MOD-CRATO-2025",   "moderador", None),
+        ("MOD-CRATO-202",   "moderador", None),
         ("SERV-DETRAN-001",  "servidor",  "DETRAN"),
         ("SERV-SAMU-001",    "servidor",  "SAMU"),
         ("SERV-BOMB-001",    "servidor",  "Corpo de Bombeiros"),
@@ -162,28 +159,107 @@ def iniciar_tabelas():
     ]
     for cod, tipo, orgao in codigos_acesso:
         cursor.execute("INSERT OR IGNORE INTO codigos_acesso (codigo, tipo, orgao) VALUES (?,?,?)", (cod, tipo, orgao))
+
     conexao.commit()
     conexao.close()
 
-# - CONSULTAR BANCO DE DADOS
-def consultar_tabelas():
+
+# - POPULAR POSTAGENS INICIAIS
+def popular_postagens_exemplo():
     conexao = conectar()
     cursor = conexao.cursor()
-    tabela = input(
-        "Qual tabela deseja consultar? "
-        "\nusuarios | codigos_acesso | bairros | naturezas"
-        "\npostagens | votos_uteis | denuncias_fake | anuncios_eventos\n"
-    )
-    tabelas_validas = [
-        "usuarios", "codigos_acesso", "bairros", "naturezas",
-        "postagens", "votos_uteis", "denuncias_fake", "anuncios_eventos"
-    ]
-    if tabela in tabelas_validas:
-        cursor.execute(f"SELECT * FROM {tabela}")
-        dados = cursor.fetchall()
-        
-        for linha in dados:
-            print(linha)
-    else:
-        print("Tabela inválida!")
+
+    usuario_id = 37337
+
+    cursor.execute("SELECT id FROM usuarios WHERE id = ?", (usuario_id,))
+    if cursor.fetchone() is None:
+        cursor.execute("""
+            INSERT INTO usuarios (id, nome, email, telefone, senha, tipo, orgao, relevancia)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            usuario_id,
+            "Usuário Exemplo",
+            "usuario.exemplo@cratovia.local",
+            "88999990000",
+            "senha123",
+            "comum",
+            None,
+            0
+        ))
+
+    def pegar_id_bairro(nome):
+        cursor.execute("SELECT id FROM bairros WHERE nome = ?", (nome,))
+        linha = cursor.fetchone()
+        return linha["id"] if linha else None
+
+    def pegar_id_natureza(nome):
+        cursor.execute("SELECT id FROM naturezas WHERE nome = ?", (nome,))
+        linha = cursor.fetchone()
+        return linha["id"] if linha else None
+
+    cursor.execute("SELECT COUNT(*) AS total FROM postagens WHERE usuario_id = ?", (usuario_id,))
+    if cursor.fetchone()["total"] == 0:
+        postagens_exemplo = [
+            {
+                "bairro": "Centro",
+                "local_bairro": "Rua Major Felizardo, próximo à praça",
+                "titulo": "Alagamento após chuva forte",
+                "descricao": "Via completamente alagada dificultando passagem de pedestres e veículos.",
+                "conteudo": "Após a chuva da tarde, a rua ficou intransitável devido ao acúmulo de água, "
+                            "que chegou a invadir algumas casas próximas. Moradores pedem providências da prefeitura.",
+                "natureza": "Alagamento",
+            },
+            {
+                "bairro": "São Miguel",
+                "local_bairro": "Avenida principal, altura do nº 230",
+                "titulo": "Buraco grande na via",
+                "descricao": "Buraco profundo na pista representa risco para motociclistas.",
+                "conteudo": "O buraco já causou a queda de pelo menos dois motociclistas nesta semana. "
+                            "A comunidade solicita reparo urgente do asfalto.",
+                "natureza": "Falta de infraestrutura",
+            },
+            {
+                "bairro": "Pimenta",
+                "local_bairro": "Rua das Flores",
+                "titulo": "Princípio de incêndio em terreno baldio",
+                "descricao": "Fogo em vegetação seca próximo a residências.",
+                "conteudo": "Vizinhos perceberam fumaça e acionaram o Corpo de Bombeiros. "
+                            "O fogo foi controlado, mas o mato alto no terreno continua sendo um risco.",
+                "natureza": "Incêndio",
+            },
+        ]
+
+        for p in postagens_exemplo:
+            cursor.execute("""
+                INSERT INTO postagens
+                    (usuario_id, bairro_id, local_bairro, titulo, descricao, conteudo,
+                    natureza_id, status, votos_uteis, denuncias, aprovado_por, criado_em)
+                VALUES (?, ?, ?, ?, ?, ?, ?, 'aprovado', 0, 0, NULL, datetime('now'))
+            """, (
+                usuario_id,
+                pegar_id_bairro(p["bairro"]),
+                p["local_bairro"],
+                p["titulo"],
+                p["descricao"],
+                p["conteudo"],
+                pegar_id_natureza(p["natureza"]),
+            ))
+
+    cursor.execute("SELECT COUNT(*) AS total FROM anuncios_eventos WHERE usuario_id = ?", (usuario_id,))
+    if cursor.fetchone()["total"] == 0:
+        cursor.execute("""
+            INSERT INTO anuncios_eventos
+                (usuario_id, bairro_id, local_bairro, titulo, descricao, conteudo, status, aprovado_por, criado_em)
+            VALUES (?, ?, ?, ?, ?, ?, 'aprovado', NULL, datetime('now'))
+        """, (
+            usuario_id,
+            pegar_id_bairro("Centro"),
+            "Praça da Sé",
+            "Feira cultural do Crato",
+            "Evento com apresentações musicais, artesanato local e barracas de comida típica, "
+            "aberto a toda a comunidade.",
+            "Grande evento organizado pelo Crato para comemorar o lanamento do sistema CratoVia."
+        ))
+
+    conexao.commit()
     conexao.close()
