@@ -1,9 +1,8 @@
-```
 from dados.database import conectar
-from utils.formatacao import linha_separadora, linha_dupla, limpar_tela
+from utils.formatacao import linha_separadora, linha_dupla, limpar_tela, formatar_data
 from utils.componentes import titulo, mensagem_sucesso, mensagem_erro
 
-# Naturezas que cada órgão pode aprovar
+
 ORGAOS_NATUREZAS = {
     "DETRAN":               ["Acidente de trânsito"],
     "SAMU":                 ["Saúde pública"],
@@ -12,16 +11,9 @@ ORGAOS_NATUREZAS = {
 }
 
 
-def _formatar_data(criado_em):
-    try:
-        data, hora = criado_em.split(" ")
-        a, m, d = data.split("-")
-        return f"{d}/{m}/{a} às {hora[:5]}"
-    except Exception:
-        return criado_em
-
 def _pausar():
     input("\n  ENTER para continuar...")
+
 
 def _pode_aprovar(usuario, natureza_nome):
     # Moderador aprova tudo
@@ -35,10 +27,6 @@ def _pode_aprovar(usuario, natureza_nome):
     return False
 
 
-# =========================
-# BUSCAR FILA DE MODERAÇÃO
-# =========================
-
 def _buscar_fila():
     with conectar() as conn:
         return [dict(r) for r in conn.execute("""
@@ -50,10 +38,6 @@ def _buscar_fila():
             ORDER BY p.criado_em ASC
         """).fetchall()]
 
-
-# =========================
-# ANALISAR POSTAGEM
-# =========================
 
 def analisar_postagem(post, usuario):
     while True:
@@ -68,7 +52,7 @@ def analisar_postagem(post, usuario):
         print(f"  Natureza:  {nat}")
         print(f"  Status:    {post['status']}")
         print(f"  Denúncias: {post['denuncias']}")
-        print(f"  Data:      {_formatar_data(post['criado_em'])}")
+        print(f"  Data:      {formatar_data(post['criado_em'])}")
 
         with conectar() as conn:
             autor_row = conn.execute(
@@ -151,10 +135,6 @@ def analisar_postagem(post, usuario):
             _pausar()
 
 
-# =========================
-# MENU DE MODERAÇÃO
-# =========================
-
 def menu_moderacao(usuario):
     while True:
         limpar_tela()
@@ -189,4 +169,3 @@ def menu_moderacao(usuario):
                 analisar_postagem(fila[num - 1], usuario)
         except ValueError:
             pass
-```
